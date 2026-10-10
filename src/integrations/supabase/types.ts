@@ -14,7 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      matches: {
+        Row: {
+          data: Json
+          id: string
+        }
+        Insert: {
+          data: Json
+          id: string
+        }
+        Update: {
+          data?: Json
+          id?: string
+        }
+        Relationships: []
+      }
+      players: {
+        Row: {
+          data: Json
+          id: string
+        }
+        Insert: {
+          data: Json
+          id: string
+        }
+        Update: {
+          data?: Json
+          id?: string
+        }
+        Relationships: []
+      }
+      settings: {
+        Row: {
+          data: Json
+          id: string
+        }
+        Insert: {
+          data: Json
+          id: string
+        }
+        Update: {
+          data?: Json
+          id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
