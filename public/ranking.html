@@ -103,6 +103,7 @@ table{width:100%;border-collapse:collapse}td,th{padding:8px 4px;text-align:left;
 
 <div class="modal" id="seasM"><div class="sheet wide"><h3 id="seasT"></h3><div class="seg" id="seasTabs" style="grid-template-columns:1fr 1fr;margin-bottom:10px"></div><div id="seasB"></div><button class="pri" id="seasOk">🏁 Confirmar e encerrar temporada</button><button class="sec" data-close>Voltar</button></div></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const START={A:1800,B:1500,C:1200};
 const DEF={id:'main',maxScore:4,margin:50,inactiveDays:0,pin:'',seasonStart:0,seasons:[]};
@@ -143,33 +144,38 @@ function compute(){
   MV=AM.filter(m=>m.at>=ss); P=Object.values(M);
 }
 
-/* ---- armazenamento ---- */
+/* ---- armazenamento compartilhado (Lovable Cloud) ---- */
 function saveLocal(){try{localStorage.setItem('tm_players',JSON.stringify(S.raw));localStorage.setItem('tm_matches',JSON.stringify(S.matches));localStorage.setItem('tm_settings',JSON.stringify(S.settings))}catch(e){}}
 const key=c=>c==='players'?'raw':'matches';
 function refresh(){compute();render()}
 async function put(col,o){
   if(col==='settings')S.settings=o; else{const a=S[key(col)],i=a.findIndex(x=>x.id===o.id);i>=0?a[i]=o:a.push(o)}
-  if(db){try{await db.collection(col).doc(o.id).set(o)}catch(e){msg('⚠️ Sem permissão para gravar.')}} else saveLocal();
+  if(db){try{const{error}=await db.from(col).upsert({id:o.id,data:o});if(error)throw error}catch(e){msg('⚠️ Não foi possível salvar. Verifique sua conexão.')}} else saveLocal();
   refresh();
 }
 async function del(col,id){
   S[key(col)]=S[key(col)].filter(x=>x.id!==id);
-  if(db){try{await db.collection(col).doc(id).delete()}catch(e){msg('⚠️ Sem permissão para apagar.')}} else saveLocal();
+  if(db){try{const{error}=await db.from(col).delete().eq('id',id);if(error)throw error}catch(e){msg('⚠️ Não foi possível apagar. Verifique sua conexão.')}} else saveLocal();
+  refresh();
+}
+async function loadAll(){
+  const[p,m,st]=await Promise.all([db.from('players').select('data'),db.from('matches').select('data'),db.from('settings').select('data')]);
+  if(p.error||m.error||st.error)throw(p.error||m.error||st.error);
+  S.raw=p.data.map(r=>r.data); S.matches=m.data.map(r=>r.data);
+  const d=st.data.find(r=>r.data&&r.data.id==='main'); S.settings={...DEF,...(d?d.data:{})};
   refresh();
 }
 (async()=>{
   try{S.raw=JSON.parse(localStorage.getItem('tm_players')||'[]');S.matches=JSON.parse(localStorage.getItem('tm_matches')||'[]');S.settings={...DEF,...JSON.parse(localStorage.getItem('tm_settings')||'{}')}}catch(e){}
   refresh();
-  try{db=await claude.use('db')}catch(e){db=null}
-  if(db){
-    S={raw:[],matches:[],settings:{...DEF}};
-    db.collection('players').onSnapshot(s=>{S.raw=s.docs.map(d=>d.data());refresh()},()=>{});
-    db.collection('matches').onSnapshot(s=>{S.matches=s.docs.map(d=>d.data());refresh()},()=>{});
-    db.collection('settings').onSnapshot(s=>{const d=s.docs.find(x=>x.id==='main');S.settings={...DEF,...(d?d.data():{})};refresh()},()=>{});
-  }
-  try{dl=await claude.use('downloads')}catch(e){dl=null}
+  try{
+    db=window.supabase.createClient('https://sbphiljvejzghtmxphpi.supabase.co','sb_publishable_4PQSjPIVrDfTqngSppT5lw_oGe-CSlQ');
+    await loadAll();
+    db.channel('ranking').on('postgres_changes',{event:'*',schema:'public',table:'players'},()=>loadAll()).on('postgres_changes',{event:'*',schema:'public',table:'matches'},()=>loadAll()).on('postgres_changes',{event:'*',schema:'public',table:'settings'},()=>loadAll()).subscribe();
+  }catch(e){db=null}
+  dl={save:({filename,data})=>{const b=new Blob([data],{type:'application/octet-stream'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);return Promise.resolve()}};
   document.querySelectorAll('[data-exp]').forEach(b=>b.hidden=!dl);
-  $('hint').textContent=db?'Dados compartilhados com quem abrir este link.':'Dados salvos apenas neste navegador.';
+  $('hint').textContent=db?'Dados compartilhados com quem abrir este link.':'Sem conexão — dados salvos apenas neste navegador.';
 })();
 
 /* ---- helpers de UI ---- */
