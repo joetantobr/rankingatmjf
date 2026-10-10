@@ -205,7 +205,7 @@ function render(){
 /* ---- escolher jogadores ---- */
 $('s1').onclick=()=>pick(0); $('s2').onclick=()=>pick(1);
 $('clrBtn').onclick=()=>{sel=[null,null];sc=[null,null];render()};
-function pick(i){pickIdx=i;$('pickT').textContent='Jogador '+(i+1);$('pq').value='';renderPick();open('pickM');setTimeout(()=>$('pq').focus(),60)}
+function pick(i){pickIdx=i;$('pickT').textContent='Jogador '+(i+1);$('pq').value='';renderPick();open('pickM')}
 $('pq').oninput=()=>renderPick();
 function renderPick(){
   const other=sel[1-pickIdx], q=$('pq').value.trim().toLowerCase();
@@ -242,10 +242,14 @@ $('w1').onclick=()=>win(0); $('w2').onclick=()=>win(1);
 
 /* ---- ranking ---- */
 $('rankBtn').onclick=()=>{renderRank();open('rankM')};
+function goPlayer(id){histId=id;pSel='all';document.querySelectorAll('.modal.on').forEach(m=>m.classList.remove('on'));renderPlayers();open('playM')}
 function renderRank(){
-  const l=ranked(), pend=vis().length-l.length;
-  $('rankNote').textContent=pend?`${pend} jogador(es) fora do ranking (menos de 3 partidas${S.settings.inactiveDays?' ou inativo há mais de '+S.settings.inactiveDays+' dias':''}).`:'';
-  $('rankL').innerHTML=l.length?`<table><tr><th>#</th><th>Jogador</th><th class="n">V</th><th class="n">D</th><th class="n">Pontos</th></tr>`+l.map((p,i)=>`<tr class="t${tier(p)}"><td>${i+1}</td><td><span class="badge">${tier(p)}</span>${esc(p.name)}</td><td class="n">${p.wins}</td><td class="n">${p.losses}</td><td class="n"><b style="color:var(--t)">${p.rating}</b></td></tr>`).join('')+'</table>':'<p style="color:var(--mut)">Ninguém no ranking ainda. É preciso jogar pelo menos 3 partidas.</p>';
+  const l=ranked(), pendL=vis().filter(p=>!l.includes(p)), pend=pendL.length;
+  $('rankNote').innerHTML=pend?`${pend} jogador(es) fora do ranking (menos de 3 partidas${S.settings.inactiveDays?' ou inativo há mais de '+S.settings.inactiveDays+' dias':''}). <button class="sec" id="rankPendB" style="margin:6px 0 0;padding:4px 10px;font-size:13px">Mostrar</button><div id="rankPend" hidden style="margin-top:8px">${pendL.sort((a,b)=>a.name.localeCompare(b.name)).map(p=>`<button class="sec pname" data-id="${p.id}" style="margin:0 6px 6px 0;padding:4px 10px;font-size:13px">${esc(p.name)}</button>`).join('')}</div>`:'';
+  if(pend){$('rankPendB').onclick=()=>{const d=$('rankPend');d.hidden=!d.hidden;$('rankPendB').textContent=d.hidden?'Mostrar':'Ocultar'};
+    $('rankNote').querySelectorAll('.pname').forEach(b=>b.onclick=()=>goPlayer(b.dataset.id))}
+  $('rankL').innerHTML=l.length?`<table><tr><th>#</th><th>Jogador</th><th class="n">V</th><th class="n">D</th><th class="n">Pontos</th></tr>`+l.map((p,i)=>`<tr class="t${tier(p)}"><td>${i+1}</td><td><span class="badge">${tier(p)}</span><button class="pname" data-id="${p.id}" style="background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;text-decoration:underline;text-underline-offset:3px">${esc(p.name)}</button></td><td class="n">${p.wins}</td><td class="n">${p.losses}</td><td class="n"><b style="color:var(--t)">${p.rating}</b></td></tr>`).join('')+'</table>':'<p style="color:var(--mut)">Ninguém no ranking ainda. É preciso jogar pelo menos 3 partidas.</p>';
+  $('rankL').querySelectorAll('.pname').forEach(b=>b.onclick=()=>goPlayer(b.dataset.id));
 }
 
 /* ---- partidas ---- */
