@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Keep match-screen layout changes in the standalone ranking page served by the root iframe so the existing shared-data behavior stays intact.
