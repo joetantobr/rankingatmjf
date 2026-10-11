@@ -332,6 +332,22 @@ function renderAdm(){
   $('ia').onchange=()=>put('settings',{...S.settings,inactiveDays:Math.max(0,+$('ia').value||0)});
   $('snB').onclick=async e=>{const v=$('snI').value.trim(),n=curS(),m={...(S.settings.sNames||{})};if(v)m[n]=v;else delete m[n];await put('settings',{...S.settings,sNames:m});flash(e.currentTarget,'✅ Salvo')};
   $('ns').onclick=()=>{sTab=0;renderSeason();open('seasM')};
+  $('adjB').onclick=()=>{
+    const l=[...P].sort((a,b)=>a.name.localeCompare(b.name));
+    $('adjP').innerHTML=l.map(p=>`<option value="${p.id}">${esc(p.name)} (${p.rating} pts · Ranking ${p.tier})</option>`).join('');
+    $('adjV').value=''; $('adjErr').textContent='';
+    $('adjP').onchange=()=>{const p=byId($('adjP').value); if(p)$('adjV').value=p.rating};
+    if(l.length)$('adjV').value=l[0].rating;
+    $('adjOk').onclick=async e=>{
+      const p=byId($('adjP').value), v=Math.round(+$('adjV').value);
+      if(!p){$('adjErr').textContent='Escolha um jogador.';return}
+      if(!Number.isFinite(v)||v<0){$('adjErr').textContent='Digite uma pontuação válida.';return}
+      const base=p.rating-(p.adj||0);
+      await put('players',{...S.raw.find(x=>x.id===p.id),adj:v-base});
+      $('adjM').classList.remove('on'); msg(`✅ ${esc(p.name)} agora tem ${v} pontos.`); renderAdm();
+    };
+    open('adjM');
+  };
   $('bkE').onclick=async e=>{const b=e.currentTarget;try{await dl.save({filename:'backup-ranking-'+today()+'.json',data:JSON.stringify({v:2,players:S.raw,matches:S.matches,settings:S.settings})});flash(b,'✅ Arquivo salvo')}catch(x){if(!x||x.code!=='declined')flash(b,'⚠️ Não foi possível salvar')}};
   $('bkF').onchange=async()=>{const f=$('bkF').files[0]; if(f)$('bk').value=await f.text()};
   $('bkR').onclick=e=>sure(e.currentTarget,async()=>{
