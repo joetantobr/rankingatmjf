@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Ranking ATMJF</title>
+<title>🏓 Ranking ATMJF 🏓</title>
 <style>
 :root{--bg:#f4f5f7;--card:#fff;--tx:#1b1f24;--mut:#6b7280;--bd:#d9dde3;--ac:#e8590c;--acx:#fff;--ok:#2f9e44;--bad:#e03131;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15171a;--card:#1f2327;--tx:#eceff3;--mut:#9aa3ad;--bd:#343a41;--ok:#51cf66;--bad:#ff6b6b}}
@@ -40,7 +40,7 @@ table{width:100%;border-collapse:collapse}td,th{padding:8px 4px;text-align:left;
 .sq5 button.on,.seg button.on{background:var(--ac);border-color:var(--ac);color:var(--acx)}
 .wrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}.wrow .pri{margin-top:0}
 .btns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px}.btns .sec{margin-top:0;min-width:0;font-size:14px}.btns #rankBtn,.btns #addBtn{font-weight:700}
-#h2h{margin:10px 0 0;text-align:center;overflow-wrap:anywhere}.h2h-line{margin-top:3px}.h2h-points{margin-top:6px}
+#h2h{margin:10px 0 0;text-align:center;overflow-wrap:anywhere}.h2h-line{margin-top:3px}.h2h-points{margin-top:6px}.h2h-cap{margin-top:10px;font-weight:700;font-size:15px}
 .score2>*{min-width:0}.wrow .pri{min-width:0;overflow-wrap:anywhere}
 .seg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .seg button{padding:12px 6px;border:2px solid var(--bd);border-radius:12px;background:var(--card);color:var(--tx);font:inherit;cursor:pointer;line-height:1.25}
@@ -65,7 +65,7 @@ h1{font-size:15px;margin:0 0 2px}
 .btns{grid-template-columns:repeat(4,minmax(0,1fr))}
 .panel{padding:8px 10px;margin-top:6px;border-radius:12px}
 #match{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(640px,calc(100% - 24px));max-height:calc(100dvh - 16px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));overflow:auto;z-index:8;margin:0;border-radius:12px}
-#h2h{font-size:11px;line-height:1.2;margin-top:6px}.h2h-line{margin-top:2px}.h2h-points{margin-top:4px}
+#h2h{font-size:11px;line-height:1.2;margin-top:6px}.h2h-line{margin-top:2px}.h2h-points{margin-top:4px}.h2h-cap{margin-top:6px;font-size:12px}
 .panel h2{font-size:13px;margin:0 0 6px}
 .legend,.cap{font-size:11px;margin-bottom:4px}
 .score2{margin-bottom:6px;gap:2px 6px}
@@ -90,7 +90,7 @@ input,select,textarea{padding:7px;font-size:14px}
 </head>
 <body>
 <main>
-  <h1>🏓 Ranking ATMJF</h1>
+  <h1>🏓 Ranking ATMJF 🏓</h1>
   <div class="season" id="seasonLbl"></div>
   <div class="row"><button class="sq" id="s1"></button><div class="vs">X</div><button class="sq" id="s2"></button></div>
   <div style="text-align:center;margin-top:6px"><button class="lnk" id="clrBtn" hidden>✕ limpar seleção</button></div>
@@ -247,7 +247,7 @@ function render(){
   if(a&&b){
     $('w1').textContent='🏆 '+a.name+' venceu'; $('w2').textContent='🏆 '+b.name+' venceu'; $('n1').textContent=a.name; $('n2').textContent=b.name; drawScore();
     const c=L=>L.filter(m=>m.winner===a.id&&m.loser===b.id).length+' x '+L.filter(m=>m.winner===b.id&&m.loser===a.id).length, [x,y]=calc(a,b), [u,v]=calc(b,a);
-    $('h2h').innerHTML=`<b>Confronto direto</b><div class="h2h-line">Desde sempre: ${esc(a.name)} <b>${c(S.matches)}</b> ${esc(b.name)}</div><div class="h2h-line">${esc(sN(curS()))}: ${esc(a.name)} <b>${c(MV)}</b> ${esc(b.name)}</div><div class="h2h-points">${esc(a.name)} vence: +${x} / ${esc(b.name)} −${y}</div><div class="h2h-line">${esc(b.name)} vence: +${u} / ${esc(a.name)} −${v}</div>`;
+    $('h2h').innerHTML=`<b>Estatística do Encontro</b><div class="h2h-line">Desde sempre: ${esc(a.name)} <b>${c(S.matches)}</b> ${esc(b.name)}</div><div class="h2h-line">${esc(sN(curS()))}: ${esc(a.name)} <b>${c(MV)}</b> ${esc(b.name)}</div><div class="h2h-cap">Pontuação no Ranking</div><div class="h2h-points">${esc(a.name)} vence: +${x} / ${esc(b.name)} −${y}</div><div class="h2h-line">${esc(b.name)} vence: +${u} / ${esc(a.name)} −${v}</div>`;
   }
   if(op('seasM'))renderSeason(); if(op('pickM'))renderPick(); if(op('rankM'))renderRank(); if(op('matchM'))renderMatches();
   if(op('playM')&&!typing())renderPlayers(); if(op('admM')&&!typing())renderAdm();
