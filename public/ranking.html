@@ -101,6 +101,15 @@ table{width:100%;border-collapse:collapse}td,th{padding:8px 4px;text-align:left;
 
 <div class="modal" id="admM"><div class="sheet"><div id="admB"></div><button class="sec" data-close>Fechar</button></div></div>
 
+<div class="modal" id="adjM"><div class="sheet">
+  <h3>✏️ Alterar pontuação</h3>
+  <p class="legend">Escolha o jogador e digite a nova pontuação. O ajuste vale daqui em diante; o histórico de partidas não muda.</p>
+  <select id="adjP" style="width:100%;margin-bottom:10px"></select>
+  <div class="wrow" style="margin-bottom:10px"><input id="adjV" type="number" inputmode="numeric" min="0" placeholder="Nova pontuação"><button class="pri" id="adjOk" style="margin:0">Salvar</button></div>
+  <div id="adjErr" class="dn"></div>
+  <button class="sec" data-close>Voltar</button>
+</div></div>
+
 <div class="modal" id="seasM"><div class="sheet wide"><h3 id="seasT"></h3><div class="seg" id="seasTabs" style="grid-template-columns:1fr 1fr;margin-bottom:10px"></div><div id="seasB"></div><button class="pri" id="seasOk">🏁 Confirmar e encerrar temporada</button><button class="sec" data-close>Voltar</button></div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -142,6 +151,7 @@ function compute(){
     const [a,b]=calc(w,l); D[m.id]=[a,b]; w.rating+=a; l.rating-=b; w.wins++; l.losses++; w.tw++; l.tl++;
     w.hist.push(w.rating); l.hist.push(l.rating); w.last=l.last=m.at; setTier(w); setTier(l)});
   if(!crossed)snap();
+  Object.values(M).forEach(x=>{if(x.adj){x.rating+=x.adj;setTier(x)}});
   MV=AM.filter(m=>m.at>=ss); P=Object.values(M);
 }
 
@@ -310,6 +320,7 @@ function renderAdm(){
   B.innerHTML=`<h3>⚙️ Administrador</h3>
   <label class="field"><span>Margem para trocar de faixa (pontos). Ex.: 50 = só cai do A abaixo de 1750</span><input id="mg" type="number" min="0" inputmode="numeric" value="${+st.margin||0}"></label>
   <label class="field"><span>Inativo some do ranking após (dias; 0 = nunca)</span><input id="ia" type="number" min="0" inputmode="numeric" value="${+st.inactiveDays||0}"></label>
+  <div class="sub">Jogadores</div><button class="sec" id="adjB" style="margin:0 0 10px">✏️ Alterar pontuação de um jogador</button>
   <div class="sub">Temporada</div><div class="wrow" style="margin-bottom:10px"><input id="snI" maxlength="40" value="${esc(sN(curS()))}"><button class="sec" id="snB" style="margin:0">Salvar nome</button></div><button class="sec" id="ns" style="margin:0">🏁 Encerrar temporada (pontos continuam)</button>
   ${(st.seasons||[]).slice().reverse().map(s=>`<details style="margin-top:8px"><summary>${esc(sN(s.n))} · ${new Date(s.end).toLocaleDateString('pt-BR')}</summary><table>${s.rows.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r[0])}</td><td class="n">${r[1]}</td><td class="n">${r[2]}</td></tr>`).join('')}</table></details>`).join('')}
   <div class="sub">Backup</div>
@@ -321,6 +332,22 @@ function renderAdm(){
   $('ia').onchange=()=>put('settings',{...S.settings,inactiveDays:Math.max(0,+$('ia').value||0)});
   $('snB').onclick=async e=>{const v=$('snI').value.trim(),n=curS(),m={...(S.settings.sNames||{})};if(v)m[n]=v;else delete m[n];await put('settings',{...S.settings,sNames:m});flash(e.currentTarget,'✅ Salvo')};
   $('ns').onclick=()=>{sTab=0;renderSeason();open('seasM')};
+  $('adjB').onclick=()=>{
+    const l=[...P].sort((a,b)=>a.name.localeCompare(b.name));
+    $('adjP').innerHTML=l.map(p=>`<option value="${p.id}">${esc(p.name)} (${p.rating} pts · Ranking ${p.tier})</option>`).join('');
+    $('adjV').value=''; $('adjErr').textContent='';
+    $('adjP').onchange=()=>{const p=byId($('adjP').value); if(p)$('adjV').value=p.rating};
+    if(l.length)$('adjV').value=l[0].rating;
+    $('adjOk').onclick=async e=>{
+      const p=byId($('adjP').value), v=Math.round(+$('adjV').value);
+      if(!p){$('adjErr').textContent='Escolha um jogador.';return}
+      if(!Number.isFinite(v)||v<0){$('adjErr').textContent='Digite uma pontuação válida.';return}
+      const base=p.rating-(p.adj||0);
+      await put('players',{...S.raw.find(x=>x.id===p.id),adj:v-base});
+      $('adjM').classList.remove('on'); msg(`✅ ${esc(p.name)} agora tem ${v} pontos.`); renderAdm();
+    };
+    open('adjM');
+  };
   $('bkE').onclick=async e=>{const b=e.currentTarget;try{await dl.save({filename:'backup-ranking-'+today()+'.json',data:JSON.stringify({v:2,players:S.raw,matches:S.matches,settings:S.settings})});flash(b,'✅ Arquivo salvo')}catch(x){if(!x||x.code!=='declined')flash(b,'⚠️ Não foi possível salvar')}};
   $('bkF').onchange=async()=>{const f=$('bkF').files[0]; if(f)$('bk').value=await f.text()};
   $('bkR').onclick=e=>sure(e.currentTarget,async()=>{
@@ -328,7 +355,7 @@ function renderAdm(){
     if(!d||!Array.isArray(d.players)||!Array.isArray(d.matches))return flash(b,'⚠️ Backup inválido');
     for(const x of S.raw.filter(x=>!d.players.some(y=>y.id===x.id)))await del('players',x.id);
     for(const x of S.matches.filter(x=>!d.matches.some(y=>y.id===x.id)))await del('matches',x.id);
-    for(const x of d.players)await put('players',{id:x.id,name:x.name,group:x.group,...(x.hidden?{hidden:true}:{})});
+    for(const x of d.players)await put('players',{id:x.id,name:x.name,group:x.group,...(x.hidden?{hidden:true}:{}),...(x.adj?{adj:x.adj}:{})});
     for(const x of d.matches)await put('matches',x);
     if(d.settings)await put('settings',{...DEF,...d.settings,id:'main'}); flash($('bkR'),'✅ Backup restaurado')});
   $('out').onclick=()=>{admin=false;render();renderAdm()};
