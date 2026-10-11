@@ -101,6 +101,15 @@ table{width:100%;border-collapse:collapse}td,th{padding:8px 4px;text-align:left;
 
 <div class="modal" id="admM"><div class="sheet"><div id="admB"></div><button class="sec" data-close>Fechar</button></div></div>
 
+<div class="modal" id="adjM"><div class="sheet">
+  <h3>✏️ Alterar pontuação</h3>
+  <p class="legend">Escolha o jogador e digite a nova pontuação. O ajuste vale daqui em diante; o histórico de partidas não muda.</p>
+  <select id="adjP" style="width:100%;margin-bottom:10px"></select>
+  <div class="wrow" style="margin-bottom:10px"><input id="adjV" type="number" inputmode="numeric" min="0" placeholder="Nova pontuação"><button class="pri" id="adjOk" style="margin:0">Salvar</button></div>
+  <div id="adjErr" class="dn"></div>
+  <button class="sec" data-close>Voltar</button>
+</div></div>
+
 <div class="modal" id="seasM"><div class="sheet wide"><h3 id="seasT"></h3><div class="seg" id="seasTabs" style="grid-template-columns:1fr 1fr;margin-bottom:10px"></div><div id="seasB"></div><button class="pri" id="seasOk">🏁 Confirmar e encerrar temporada</button><button class="sec" data-close>Voltar</button></div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -142,6 +151,7 @@ function compute(){
     const [a,b]=calc(w,l); D[m.id]=[a,b]; w.rating+=a; l.rating-=b; w.wins++; l.losses++; w.tw++; l.tl++;
     w.hist.push(w.rating); l.hist.push(l.rating); w.last=l.last=m.at; setTier(w); setTier(l)});
   if(!crossed)snap();
+  Object.values(M).forEach(x=>{if(x.adj){x.rating+=x.adj;setTier(x)}});
   MV=AM.filter(m=>m.at>=ss); P=Object.values(M);
 }
 
