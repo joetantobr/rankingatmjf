@@ -71,7 +71,7 @@ table{width:100%;border-collapse:collapse}td,th{padding:8px 4px;text-align:left;
 <div class="modal" id="addM"><div class="sheet">
   <h3>Novo jogador</h3>
   <label class="field"><span>Nome</span><input id="aName" maxlength="40" autocomplete="off"></label>
-  <div class="field"><span>Ranking inicial (define só a pontuação de partida)</span>
+  <div class="field" id="aGrpF"><span>Ranking inicial (define só a pontuação de partida)</span>
     <div class="seg" id="aGrp">
       <button class="tC" data-g="C"><b>Ranking C</b><br><small>1200 pts</small></button>
       <button class="tB" data-g="B"><b>Ranking B</b><br><small>1500 pts</small></button>
@@ -117,13 +117,14 @@ const fmt=t=>new Date(t).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',h
 const typing=()=>{const a=document.activeElement;return a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA')};
 const vis=()=>P.filter(p=>!p.hidden);
 let mSel='cur', pSel='all';
+const sN=n=>((S.settings.sNames||{})[n]||'Temporada '+n);
 const curS=()=>(S.settings.seasons||[]).length+1;
 const seasonOf=m=>1+(S.settings.seasons||[]).filter(s=>m.at>=s.end).length;
 const inSeason=(m,v)=>v==='all'||seasonOf(m)===(v==='cur'?curS():+v);
 const matchView=()=>[...S.matches].sort((a,b)=>a.at-b.at).filter(m=>inSeason(m,mSel));
 function seasOpts(allFirst,allLabel,sv){
   const o=(v,t)=>`<option value="${v}"${String(v)===String(sv)?' selected':''}>${t}</option>`, n=curS();
-  let h=allFirst?o('all',allLabel):''; h+=o('cur','Temporada '+n+' (atual)'); for(let i=n-1;i>=1;i--)h+=o(i,'Temporada '+i); return h+(allFirst?'':o('all',allLabel));
+  let h=allFirst?o('all',allLabel):''; h+=o('cur',sN(n)+' (atual)'); for(let i=n-1;i>=1;i--)h+=o(i,sN(i)); return h+(allFirst?'':o('all',allLabel));
 }
 const ranked=()=>{const d=S.settings.inactiveDays,n=Date.now();return vis().filter(p=>games(p)>=3&&(!d||n-p.last<=d*864e5)).sort((a,b)=>b.rating-a.rating)};
 
@@ -188,7 +189,7 @@ function sure(b,fn){ if(b.dataset.s){delete b.dataset.s;fn();return} b.dataset.s
 function needAdmin(fn){ if(admin){fn();return} pend=fn; renderAdm(); open('admM') }
 
 function render(){
-  $('seasonLbl').textContent='Temporada '+((S.settings.seasons||[]).length+1);
+  $('seasonLbl').textContent=sN(curS());
   [0,1].forEach(i=>{const p=sel[i]?byId(sel[i]):null; if(!p)sel[i]=null; const b=$('s'+(i+1));
     b.className='sq'+(p?' filled t'+tier(p):'');
     b.innerHTML=p?`<small>Jogador ${i+1} · Ranking ${tier(p)}</small><span class="nm">${esc(p.name)}</span><span class="rt">${p.rating}</span>`:`<span style="font-size:28px">＋</span><span>Selecionar<br>Jogador ${i+1}</span>`});
@@ -196,7 +197,7 @@ function render(){
   if(a&&b){
     $('w1').textContent='🏆 '+a.name+' venceu'; $('w2').textContent='🏆 '+b.name+' venceu'; $('n1').textContent=a.name; $('n2').textContent=b.name; drawScore();
     const c=L=>L.filter(m=>m.winner===a.id&&m.loser===b.id).length+' x '+L.filter(m=>m.winner===b.id&&m.loser===a.id).length, [x,y]=calc(a,b), [u,v]=calc(b,a);
-    $('h2h').innerHTML=`Confronto direto<br>Desde sempre: ${esc(a.name)} <b>${c(S.matches)}</b> ${esc(b.name)}<br>Temporada ${curS()}: ${esc(a.name)} <b>${c(MV)}</b> ${esc(b.name)}<br><br>${esc(a.name)} vence: +${x} / ${esc(b.name)} −${y}<br>${esc(b.name)} vence: +${u} / ${esc(a.name)} −${v}`;
+    $('h2h').innerHTML=`Confronto direto<br>Desde sempre: ${esc(a.name)} <b>${c(S.matches)}</b> ${esc(b.name)}<br>${esc(sN(curS()))}: ${esc(a.name)} <b>${c(MV)}</b> ${esc(b.name)}<br><br>${esc(a.name)} vence: +${x} / ${esc(b.name)} −${y}<br>${esc(b.name)} vence: +${u} / ${esc(a.name)} −${v}`;
   }
   if(op('seasM'))renderSeason(); if(op('pickM'))renderPick(); if(op('rankM'))renderRank(); if(op('matchM'))renderMatches();
   if(op('playM')&&!typing())renderPlayers(); if(op('admM')&&!typing())renderAdm();
@@ -217,11 +218,11 @@ function renderPick(){
 /* ---- novo jogador ---- */
 function setGrp(g){newGrp=g;document.querySelectorAll('#aGrp button').forEach(b=>b.classList.toggle('on',b.dataset.g===g))}
 document.querySelectorAll('#aGrp button').forEach(b=>b.onclick=()=>setGrp(b.dataset.g));
-$('addBtn').onclick=()=>{$('aName').value='';setGrp('C');$('aErr').textContent='';open('addM');setTimeout(()=>$('aName').focus(),50)};
+$('addBtn').onclick=()=>{$('aName').value='';setGrp('C');$('aGrpF').hidden=!admin;$('aErr').textContent='';open('addM');setTimeout(()=>$('aName').focus(),50)};
 $('aSave').onclick=async()=>{
   const name=$('aName').value.trim(); if(!name){$('aErr').textContent='Digite o nome.';return}
   if(S.raw.some(p=>p.name.toLowerCase()===name.toLowerCase())){$('aErr').textContent='Já existe um jogador com esse nome.';return}
-  await put('players',{id:uid(),name,group:newGrp}); $('addM').classList.remove('on'); msg(`✅ ${esc(name)} adicionado ao Ranking ${newGrp} com ${START[newGrp]} pontos.`);
+  await put('players',{id:uid(),name,group:admin?newGrp:'C'}); $('addM').classList.remove('on'); msg(`✅ ${esc(name)} adicionado ao Ranking ${newGrp} com ${START[newGrp]} pontos.`);
 };
 
 /* ---- placar e resultado ---- */
@@ -309,8 +310,8 @@ function renderAdm(){
   B.innerHTML=`<h3>⚙️ Administrador</h3>
   <label class="field"><span>Margem para trocar de faixa (pontos). Ex.: 50 = só cai do A abaixo de 1750</span><input id="mg" type="number" min="0" inputmode="numeric" value="${+st.margin||0}"></label>
   <label class="field"><span>Inativo some do ranking após (dias; 0 = nunca)</span><input id="ia" type="number" min="0" inputmode="numeric" value="${+st.inactiveDays||0}"></label>
-  <div class="sub">Temporada</div><button class="sec" id="ns" style="margin:0">🏁 Encerrar temporada (pontos continuam)</button>
-  ${(st.seasons||[]).slice().reverse().map(s=>`<details style="margin-top:8px"><summary>Temporada ${s.n} · ${new Date(s.end).toLocaleDateString('pt-BR')}</summary><table>${s.rows.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r[0])}</td><td class="n">${r[1]}</td><td class="n">${r[2]}</td></tr>`).join('')}</table></details>`).join('')}
+  <div class="sub">Temporada</div><div class="wrow" style="margin-bottom:10px"><input id="snI" maxlength="40" value="${esc(sN(curS()))}"><button class="sec" id="snB" style="margin:0">Salvar nome</button></div><button class="sec" id="ns" style="margin:0">🏁 Encerrar temporada (pontos continuam)</button>
+  ${(st.seasons||[]).slice().reverse().map(s=>`<details style="margin-top:8px"><summary>${esc(sN(s.n))} · ${new Date(s.end).toLocaleDateString('pt-BR')}</summary><table>${s.rows.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r[0])}</td><td class="n">${r[1]}</td><td class="n">${r[2]}</td></tr>`).join('')}</table></details>`).join('')}
   <div class="sub">Backup</div>
   <button class="sec" id="bkE" ${dl?'':'hidden'} style="margin:0">⬇️ Baixar backup (JSON)</button>
   <input type="file" id="bkF" accept=".json,application/json" style="width:100%;margin-top:8px"><textarea id="bk" rows="3" placeholder="Cole aqui o conteúdo do backup..." style="width:100%;margin-top:8px"></textarea>
@@ -318,6 +319,7 @@ function renderAdm(){
   <button class="sec" id="out">Sair do modo administrador</button>`;
   $('mg').onchange=()=>put('settings',{...S.settings,margin:Math.max(0,+$('mg').value||0)});
   $('ia').onchange=()=>put('settings',{...S.settings,inactiveDays:Math.max(0,+$('ia').value||0)});
+  $('snB').onclick=async e=>{const v=$('snI').value.trim(),n=curS(),m={...(S.settings.sNames||{})};if(v)m[n]=v;else delete m[n];await put('settings',{...S.settings,sNames:m});flash(e.currentTarget,'✅ Salvo')};
   $('ns').onclick=()=>{sTab=0;renderSeason();open('seasM')};
   $('bkE').onclick=async e=>{const b=e.currentTarget;try{await dl.save({filename:'backup-ranking-'+today()+'.json',data:JSON.stringify({v:2,players:S.raw,matches:S.matches,settings:S.settings})});flash(b,'✅ Arquivo salvo')}catch(x){if(!x||x.code!=='declined')flash(b,'⚠️ Não foi possível salvar')}};
   $('bkF').onchange=async()=>{const f=$('bkF').files[0]; if(f)$('bk').value=await f.text()};
@@ -336,7 +338,7 @@ function renderAdm(){
 let sTab=0;
 function renderSeason(){
   const n=(S.settings.seasons||[]).length+1, ch=vis().filter(p=>p.st0!==p.tier).sort((a,b)=>b.rating-a.rating);
-  $('seasT').textContent='Encerrar Temporada '+n+'?';
+  $('seasT').textContent='Encerrar '+sN(n)+'?';
   $('seasTabs').innerHTML=`<button data-t="0" class="${sTab===0?'on':''}">Mudanças de ranking (${ch.length})</button><button data-t="1" class="${sTab===1?'on':''}">Jogos da temporada (${MV.length})</button>`;
   $('seasTabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{sTab=+b.dataset.t;renderSeason()});
   $('seasB').innerHTML=sTab===0
