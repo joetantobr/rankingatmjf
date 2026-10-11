@@ -247,7 +247,7 @@ function render(){
   if(a&&b){
     $('w1').textContent='🏆 '+a.name+' venceu'; $('w2').textContent='🏆 '+b.name+' venceu'; $('n1').textContent=a.name; $('n2').textContent=b.name; drawScore();
     const c=L=>L.filter(m=>m.winner===a.id&&m.loser===b.id).length+' x '+L.filter(m=>m.winner===b.id&&m.loser===a.id).length, [x,y]=calc(a,b), [u,v]=calc(b,a);
-    $('h2h').innerHTML=`<b>Confronto direto</b><div class="h2h-line">Desde sempre: ${esc(a.name)} <b>${c(S.matches)}</b> ${esc(b.name)}</div><div class="h2h-line">${esc(sN(curS()))}: ${esc(a.name)} <b>${c(MV)}</b> ${esc(b.name)}</div><div class="h2h-points">${esc(a.name)} vence: +${x} / ${esc(b.name)} −${y}</div><div class="h2h-line">${esc(b.name)} vence: +${u} / ${esc(a.name)} −${v}</div>`;
+    $('h2h').innerHTML=`<b>Estatística do Encontro</b><div class="h2h-line">Desde sempre: ${esc(a.name)} <b>${c(S.matches)}</b> ${esc(b.name)}</div><div class="h2h-line">${esc(sN(curS()))}: ${esc(a.name)} <b>${c(MV)}</b> ${esc(b.name)}</div><div class="h2h-cap">Pontuação no Ranking</div><div class="h2h-points">${esc(a.name)} vence: +${x} / ${esc(b.name)} −${y}</div><div class="h2h-line">${esc(b.name)} vence: +${u} / ${esc(a.name)} −${v}</div>`;
   }
   if(op('seasM'))renderSeason(); if(op('pickM'))renderPick(); if(op('rankM'))renderRank(); if(op('matchM'))renderMatches();
   if(op('playM')&&!typing())renderPlayers(); if(op('admM')&&!typing())renderAdm();
