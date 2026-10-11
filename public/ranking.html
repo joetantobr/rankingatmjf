@@ -355,7 +355,7 @@ function renderAdm(){
     if(!d||!Array.isArray(d.players)||!Array.isArray(d.matches))return flash(b,'⚠️ Backup inválido');
     for(const x of S.raw.filter(x=>!d.players.some(y=>y.id===x.id)))await del('players',x.id);
     for(const x of S.matches.filter(x=>!d.matches.some(y=>y.id===x.id)))await del('matches',x.id);
-    for(const x of d.players)await put('players',{id:x.id,name:x.name,group:x.group,...(x.hidden?{hidden:true}:{})});
+    for(const x of d.players)await put('players',{id:x.id,name:x.name,group:x.group,...(x.hidden?{hidden:true}:{}),...(x.adj?{adj:x.adj}:{})});
     for(const x of d.matches)await put('matches',x);
     if(d.settings)await put('settings',{...DEF,...d.settings,id:'main'}); flash($('bkR'),'✅ Backup restaurado')});
   $('out').onclick=()=>{admin=false;render();renderAdm()};
