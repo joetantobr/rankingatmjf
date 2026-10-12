@@ -4,3 +4,5 @@
 - [x] Verify portrait and landscape controls without changing shared data.
 - [x] Add ping-pong emojis around the page title, rename "Confronto direto" to "Estatística do Encontro", and add "Pontuação no Ranking" above the points.
 - [x] Publish the current version to the shared link.
+- [x] Restore the direct result saving (remove the confirm-result step).
+- [x] Reverse the scoreboard order: left 4-3-2-1-0, right 0-1-2-3-4.
