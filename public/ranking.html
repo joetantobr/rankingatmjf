@@ -140,7 +140,6 @@ input,select,textarea{padding:7px;font-size:14px}
   <button class="sec" data-exp hidden id="expMatches">⬇️ Exportar partidas (CSV)</button><button class="sec" data-close>Fechar</button>
 </div></div>
 
-<div class="modal" id="cfM"><div class="sheet"><h3>Confirmar resultado</h3><div id="cfB" style="text-align:center;margin:10px 0"></div><button class="pri" id="cfOk">✅ Confirmar e salvar</button><button class="sec" data-close>Corrigir</button></div></div>
 
 <div class="modal" id="emM"><div class="sheet"><h3>✏️ Corrigir partida</h3><p class="legend" id="emInfo"></p>
   <div class="field"><span>Quem ganhou?</span><div class="seg" id="emW" style="grid-template-columns:1fr 1fr"></div></div>
@@ -285,15 +284,9 @@ $('aSave').onclick=async()=>{
 };
 
 /* ---- placar e resultado ---- */
-function drawScore(){const mx=4;[0,1].forEach(i=>{$('sc'+(i+1)).innerHTML=Array.from({length:mx+1},(_,n)=>{const v=i===0?n:mx-n;return `<button data-i="${i}" data-v="${v}" class="${sc[i]===v?'on':''}">${v}</button>`}).join('')})}
+function drawScore(){const mx=4;[0,1].forEach(i=>{$('sc'+(i+1)).innerHTML=Array.from({length:mx+1},(_,n)=>{const v=i===0?mx-n:n;return `<button data-i="${i}" data-v="${v}" class="${sc[i]===v?'on':''}">${v}</button>`}).join('')})}
 ['sc1','sc2'].forEach(id=>$(id).addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const i=+b.dataset.i,v=+b.dataset.v;sc[i]=sc[i]===v?null:v;drawScore()}));
-function win(wi){
-  const w=byId(sel[wi]), l=byId(sel[1-wi]); if(!w||!l)return; const ws=sc[wi], ls=sc[1-wi], has=ws!==null&&ls!==null;
-  if(has&&ws<=ls){msg('⚠️ O placar não bate com o vencedor escolhido.');return}
-  $('cfB').innerHTML=`🏆 <b>${esc(w.name)}</b> venceu <b>${esc(l.name)}</b>${has?'<br>Placar: <b>'+ws+' x '+ls+'</b>':'<br><span style="color:var(--mut)">Sem placar</span>'}`;
-  $('cfOk').onclick=()=>{$('cfM').classList.remove('on');doWin(wi)}; open('cfM');
-}
-async function doWin(wi){
+async function win(wi){
   if(busy)return; const w=byId(sel[wi]), l=byId(sel[1-wi]); if(!w||!l)return;
   const ws=sc[wi], ls=sc[1-wi], has=ws!==null&&ls!==null;
   if(has&&ws<=ls){msg('⚠️ O placar não bate com o vencedor escolhido.');return}
