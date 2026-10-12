@@ -124,7 +124,8 @@ input,select,textarea{padding:7px;font-size:14px}
 <div class="modal" id="rankM"><div class="sheet">
   <h3>Ranking geral</h3>
   <p class="legend"><span class="badge tA">A</span>1800+ <span class="badge tB">B</span>1500+ <span class="badge tC">C</span>1200+</p>
-  <div id="rankL"></div><p class="legend" id="rankNote"></p>
+  <div id="rankL"></div><p class="legend" id="rankNote"></p><div id="rankHi"></div>
+  <button class="sec" id="shareB">📤 Compartilhar ranking (WhatsApp)</button>
   <button class="sec" data-exp hidden id="expPlayers">⬇️ Exportar jogadores (CSV)</button><button class="sec" data-close>Fechar</button>
 </div></div>
 
@@ -138,6 +139,13 @@ input,select,textarea{padding:7px;font-size:14px}
   <div id="matchL"></div>
   <button class="sec" data-exp hidden id="expMatches">⬇️ Exportar partidas (CSV)</button><button class="sec" data-close>Fechar</button>
 </div></div>
+
+<div class="modal" id="cfM"><div class="sheet"><h3>Confirmar resultado</h3><div id="cfB" style="text-align:center;margin:10px 0"></div><button class="pri" id="cfOk">✅ Confirmar e salvar</button><button class="sec" data-close>Corrigir</button></div></div>
+
+<div class="modal" id="emM"><div class="sheet"><h3>✏️ Corrigir partida</h3><p class="legend" id="emInfo"></p>
+  <div class="field"><span>Quem ganhou?</span><div class="seg" id="emW" style="grid-template-columns:1fr 1fr"></div></div>
+  <label class="field"><span>Placar do vencedor x perdedor (ex.: 3x1; vazio = sem placar)</span><input id="emS" maxlength="5" autocomplete="off"></label>
+  <div id="emErr" class="dn"></div><button class="pri" id="emOk">Salvar correção</button><button class="sec" data-close>Voltar</button></div></div>
 
 <div class="modal" id="admM"><div class="sheet"><div id="admB"></div><button class="sec" data-close>Fechar</button></div></div>
 
@@ -236,6 +244,7 @@ document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{if
 function msg(h){const m=$('msg');m.innerHTML=h;m.hidden=false}
 function flash(b,t){const o=b.textContent;b.textContent=t;setTimeout(()=>b.textContent=o,2500)}
 function sure(b,fn){ if(b.dataset.s){delete b.dataset.s;fn();return} b.dataset.s=1; const o=b.textContent; b.textContent='Toque de novo para confirmar'; setTimeout(()=>{delete b.dataset.s;b.textContent=o},3000)}
+async function logA(t){await put('settings',{...S.settings,log:[{at:Date.now(),t},...(S.settings.log||[])].slice(0,300)})}
 function needAdmin(fn){ if(admin){fn();return} pend=fn; renderAdm(); open('admM') }
 
 function render(){
@@ -278,7 +287,13 @@ $('aSave').onclick=async()=>{
 /* ---- placar e resultado ---- */
 function drawScore(){const mx=4;[0,1].forEach(i=>{$('sc'+(i+1)).innerHTML=Array.from({length:mx+1},(_,n)=>{const v=i===0?n:mx-n;return `<button data-i="${i}" data-v="${v}" class="${sc[i]===v?'on':''}">${v}</button>`}).join('')})}
 ['sc1','sc2'].forEach(id=>$(id).addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const i=+b.dataset.i,v=+b.dataset.v;sc[i]=sc[i]===v?null:v;drawScore()}));
-async function win(wi){
+function win(wi){
+  const w=byId(sel[wi]), l=byId(sel[1-wi]); if(!w||!l)return; const ws=sc[wi], ls=sc[1-wi], has=ws!==null&&ls!==null;
+  if(has&&ws<=ls){msg('⚠️ O placar não bate com o vencedor escolhido.');return}
+  $('cfB').innerHTML=`🏆 <b>${esc(w.name)}</b> venceu <b>${esc(l.name)}</b>${has?'<br>Placar: <b>'+ws+' x '+ls+'</b>':'<br><span style="color:var(--mut)">Sem placar</span>'}`;
+  $('cfOk').onclick=()=>{$('cfM').classList.remove('on');doWin(wi)}; open('cfM');
+}
+async function doWin(wi){
   if(busy)return; const w=byId(sel[wi]), l=byId(sel[1-wi]); if(!w||!l)return;
   const ws=sc[wi], ls=sc[1-wi], has=ws!==null&&ls!==null;
   if(has&&ws<=ls){msg('⚠️ O placar não bate com o vencedor escolhido.');return}
@@ -301,17 +316,40 @@ function renderRank(){
     $('rankNote').querySelectorAll('.pname').forEach(b=>b.onclick=()=>goPlayer(b.dataset.id))}
   $('rankL').innerHTML=l.length?`<table><tr><th>#</th><th>Jogador</th><th class="n">V</th><th class="n">D</th><th class="n">Pontos</th></tr>`+l.map((p,i)=>`<tr class="t${tier(p)}"><td>${i+1}</td><td><span class="badge">${tier(p)}</span><button class="pname" data-id="${p.id}" style="background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;text-decoration:underline;text-underline-offset:3px">${esc(p.name)}</button></td><td class="n">${p.wins}</td><td class="n">${p.losses}</td><td class="n"><b style="color:var(--t)">${p.rating}</b></td></tr>`).join('')+'</table>':'<p style="color:var(--mut)">Ninguém no ranking ainda. É preciso jogar pelo menos 3 partidas.</p>';
   $('rankL').querySelectorAll('.pname').forEach(b=>b.onclick=()=>goPlayer(b.dataset.id));
+  const act=vis().filter(p=>p.wins+p.losses>0), top=(f)=>act.slice().sort(f)[0], lead=['A','B','C'].map(t=>[t,l.find(p=>p.tier===t)]).filter(x=>x[1]);
+  const up=top((a,b)=>(b.rating-b.r0)-(a.rating-a.r0)), many=top((a,b)=>games(b)-games(a)), wins=top((a,b)=>b.wins-a.wins);
+  $('rankHi').innerHTML=act.length?`<div class="panel" style="margin:6px 0 0"><div class="sub" style="margin-top:0">⭐ Destaques · ${esc(sN(curS()))}</div><div class="legend" style="margin:0;color:var(--tx);line-height:1.6">${lead.map(([t,p])=>`🥇 Líder do Ranking ${t}: <b>${esc(p.name)}</b> (${p.rating})`).join('<br>')}${up&&up.rating>up.r0?`<br>🚀 Quem mais subiu: <b>${esc(up.name)}</b> (+${up.rating-up.r0})`:''}<br>🏓 Quem mais jogou: <b>${esc(many.name)}</b> (${games(many)} partidas)${wins.wins?`<br>🏆 Mais vitórias: <b>${esc(wins.name)}</b> (${wins.wins})`:''}</div></div>`:'';
 }
+$('shareB').onclick=async()=>{
+  const l=ranked(); let t=`🏓 Ranking ATMJF 🏓\n${sN(curS())}\n`;
+  ['A','B','C'].forEach(g=>{const x=l.filter(p=>p.tier===g); if(x.length)t+=`\n*Ranking ${g}*\n`+x.map(p=>`${l.indexOf(p)+1}º ${p.name} — ${p.rating} pts (${p.wins}V ${p.losses}D)`).join('\n')+'\n'});
+  t+=`\nVeja completo: https://rankingatmjf.lovable.app`;
+  try{if(navigator.share){await navigator.share({text:t});return}}catch(e){if(e&&e.name==='AbortError')return}
+  window.open('https://wa.me/?text='+encodeURIComponent(t),'_blank');
+};
 
 /* ---- partidas ---- */
 $('matchBtn').onclick=()=>{mSel='cur';renderMatches();open('matchM')};
 $('mSeas').onchange=()=>{mSel=$('mSeas').value;renderMatches()};
-$('undoBtn').onclick=e=>{const m=MV[MV.length-1]; if(!m)return; sure(e.currentTarget,()=>del('matches',m.id))};
+$('undoBtn').onclick=e=>{const m=MV[MV.length-1]; if(!m)return; sure(e.currentTarget,async()=>{await del('matches',m.id);await logA(`Partida desfeita: ${nameOf(m.winner,m.wn)} x ${nameOf(m.loser,m.ln)}`)})};
 function renderMatches(){
   const l=matchView().reverse(), so=seasOpts(false,'Todas as temporadas',mSel); if($('mSeas').dataset.h!==so){$('mSeas').innerHTML=so;$('mSeas').dataset.h=so}
   $('undoBtn').hidden=!(mSel==='cur'&&l.length);
-  $('matchL').innerHTML=l.length?`<table><tr><th>Data</th><th>Vencedor</th><th>Perdedor</th><th class="n">Placar</th>${admin?'<th></th>':''}</tr>`+l.map(m=>{const d=D[m.id]||[0,0];return `<tr><td>${fmt(m.at)}</td><td><b class="up">${esc(nameOf(m.winner,m.wn))}</b> <small>+${d[0]}</small></td><td>${esc(nameOf(m.loser,m.ln))} <small>−${d[1]}</small></td><td class="n">${m.score?esc(m.score):'–'}</td>${admin?`<td><button class="x1" data-id="${m.id}">✕</button></td>`:''}</tr>`}).join('')+'</table>':'<p style="color:var(--mut)">Nenhuma partida nesta temporada.</p>';
-  $('matchL').querySelectorAll('.x1').forEach(b=>b.onclick=()=>sure(b,()=>del('matches',b.dataset.id)));
+  $('matchL').innerHTML=l.length?`<table><tr><th>Data</th><th>Vencedor</th><th>Perdedor</th><th class="n">Placar</th>${admin?'<th></th>':''}</tr>`+l.map(m=>{const d=D[m.id]||[0,0];return `<tr><td>${fmt(m.at)}</td><td><b class="up">${esc(nameOf(m.winner,m.wn))}</b> <small>+${d[0]}</small></td><td>${esc(nameOf(m.loser,m.ln))} <small>−${d[1]}</small></td><td class="n">${m.score?esc(m.score):'–'}</td>${admin?`<td style="white-space:nowrap"><button class="x1 ed" data-id="${m.id}" style="color:var(--tx)">✏️</button><button class="x1 rm" data-id="${m.id}">✕</button></td>`:''}</tr>`}).join('')+'</table>':'<p style="color:var(--mut)">Nenhuma partida nesta temporada.</p>';
+  $('matchL').querySelectorAll('.rm').forEach(b=>b.onclick=()=>sure(b,async()=>{const m=S.matches.find(x=>x.id===b.dataset.id);await del('matches',b.dataset.id);if(m)await logA(`Partida apagada: ${nameOf(m.winner,m.wn)} x ${nameOf(m.loser,m.ln)} (${fmt(m.at)})`)}));
+  $('matchL').querySelectorAll('.ed').forEach(b=>b.onclick=()=>editMatch(b.dataset.id));
+}
+function editMatch(id){
+  const m=S.matches.find(x=>x.id===id); if(!m)return; let w=m.winner;
+  const ids=[m.winner,m.loser], draw=()=>{$('emW').innerHTML=ids.map(i=>`<button data-id="${i}" class="${w===i?'on':''}">${esc(nameOf(i,i===m.winner?m.wn:m.ln))}</button>`).join('');$('emW').querySelectorAll('button').forEach(b=>b.onclick=()=>{w=b.dataset.id;draw()})};
+  $('emInfo').textContent='Partida de '+fmt(m.at)+'. A pontuação de todos é recalculada automaticamente.'; $('emS').value=m.score||''; $('emErr').textContent=''; draw();
+  $('emOk').onclick=async()=>{const v=$('emS').value.replace(/\s/g,'').toLowerCase();
+    if(v&&!/^\d+x\d+$/.test(v)){$('emErr').textContent='Use o formato 3x1.';return}
+    if(v){const[a,c]=v.split('x').map(Number);if(a<=c){$('emErr').textContent='O vencedor precisa ter mais sets.';return}}
+    const l=ids.find(i=>i!==w), o=`${nameOf(m.winner,m.wn)} ${m.score||''} ${nameOf(m.loser,m.ln)}`;
+    await put('matches',{...m,winner:w,loser:l,wn:nameOf(w),ln:nameOf(l),score:v});
+    await logA(`Partida corrigida (${fmt(m.at)}): ${o} → ${nameOf(w)} ${v} ${nameOf(l)}`); $('emM').classList.remove('on')};
+  open('emM');
 }
 
 /* ---- jogadores + histórico ---- */
@@ -335,13 +373,22 @@ function renderPlayers(){
   const idx=all.map((m,i)=>i).filter(i=>inSeason(all[i],pSel)), ms=idx.map(i=>all[i]).reverse(), hist=idx.length?[ser[idx[0]],...idx.map(i=>ser[i+1])]:[];
   const nw=ms.filter(m=>m.winner===p.id).length, nl=ms.length-nw;
   let h=`<div class="phead t${tier(p)}"><span class="badge">${tier(p)}</span><b style="font-size:22px;color:var(--t)">${p.rating}</b> pts · ${nw}V ${nl}D`+(pSel==='cur'&&g<3?` · <span style="color:var(--mut)">${g}/3 partidas para entrar no ranking</span>`:'')+`<div style="margin-top:8px"><select id="pS" style="width:100%">${seasOpts(true,'Geral (todas as temporadas)',pSel)}</select></div>`+chart(hist)+`</div>`;
-  if(admin)h+=`<div class="wrow" style="margin-bottom:10px"><input id="rn" value="${esc(p.name)}" maxlength="40"><button class="sec" id="rnB" style="margin:0">Salvar nome</button></div><button class="sec" id="arB" style="margin:0 0 10px">${p.hidden?'♻️ Reativar jogador':'🗄️ Arquivar jogador (some das listas, histórico fica)'}</button>`;
+  {const asc=[...ms].reverse(); let cur=0,cw=null,best=0,run=0; asc.forEach(m=>{const won=m.winner===p.id; run=won?run+1:0; if(run>best)best=run});
+    for(const m of ms){const won=m.winner===p.id; if(cw===null)cw=won; if(won!==cw)break; cur++}
+    const O={}; ms.forEach(m=>{const won=m.winner===p.id,o=won?m.loser:m.winner,n=won?m.ln:m.wn; O[o]=O[o]||{n:nameOf(o,n),w:0,l:0}; won?O[o].w++:O[o].l++});
+    const ov=Object.values(O), hard=ov.filter(x=>x.l).sort((a,b)=>b.l-a.l||a.w-b.w)[0], easy=ov.filter(x=>x.w).sort((a,b)=>b.w-a.w||a.l-b.l)[0];
+    if(ms.length)h+=`<div class="panel" style="margin:0 0 10px"><div class="sub" style="margin-top:0">📈 Estatísticas</div><div class="legend" style="margin:0;color:var(--tx);line-height:1.6">Sequência atual: <b class="${cw?'up':'dn'}">${cur} ${cw?(cur>1?'vitórias':'vitória'):(cur>1?'derrotas':'derrota')}</b><br>Maior sequência de vitórias: <b>${best}</b><br>Maior pontuação: <b>${Math.max(...(hist.length?hist:[p.rating]))}</b> pts<br>Aproveitamento: <b>${Math.round(nw*100/ms.length)}%</b>${hard?`<br>Adversário mais difícil: <b>${esc(hard.n)}</b> (${hard.w}V ${hard.l}D)`:''}${easy?`<br>Mais vitórias contra: <b>${esc(easy.n)}</b> (${easy.w}V ${easy.l}D)`:''}</div></div>`}
+  if(admin)h+=`<div class="sub">Admin: ranking inicial</div><div class="seg" id="pg" style="margin-bottom:10px">${['C','B','A'].map(x=>`<button class="t${x}${p.group===x?' on':''}" data-g="${x}">${x} · ${START[x]}</button>`).join('')}</div><div class="sub">Admin: juntar cadastro duplicado</div><div class="wrow" style="margin-bottom:10px"><select id="mgP"><option value="">Escolha o duplicado…</option>${S.raw.filter(x=>x.id!==p.id).sort((a,b)=>a.name.localeCompare(b.name)).map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select><button class="sec" id="mgB" style="margin:0">🔗 Juntar</button></div><div class="legend">As partidas do duplicado passam para ${esc(p.name)} e o duplicado é apagado.</div><div class="wrow" style="margin-bottom:10px"><input id="rn" value="${esc(p.name)}" maxlength="40"><button class="sec" id="rnB" style="margin:0">Salvar nome</button></div><button class="sec" id="arB" style="margin:0 0 10px">${p.hidden?'♻️ Reativar jogador':'🗄️ Arquivar jogador (some das listas, histórico fica)'}</button>`;
   h+=ms.length?`<table><tr><th>Data</th><th>Adversário</th><th>Resultado</th><th class="n">Placar</th><th class="n">Pontos</th></tr>`+ms.map(m=>{const won=m.winner===p.id,d=D[m.id]||[0,0],s=m.score?(won?m.score:m.score.split('x').reverse().join('x')):'–';
     return `<tr><td>${fmt(m.at)}</td><td>${esc(won?nameOf(m.loser,m.ln):nameOf(m.winner,m.wn))}</td><td class="${won?'up':'dn'}">${won?'Vitória':'Derrota'}</td><td class="n">${esc(s)}</td><td class="n ${won?'up':'dn'}">${won?'+'+d[0]:'−'+d[1]}</td></tr>`}).join('')+'</table>':'<p style="color:var(--mut)">Nenhuma partida neste período.</p>';
   $('playD').innerHTML=h; $('pS').onchange=()=>{pSel=$('pS').value;renderPlayers()};
   if(admin){
-    $('rnB').onclick=async()=>{const n=$('rn').value.trim(); if(!n)return; if(S.raw.some(x=>x.id!==p.id&&x.name.toLowerCase()===n.toLowerCase()))return flash($('rnB'),'Nome já existe'); await put('players',{...S.raw.find(x=>x.id===p.id),name:n}); flash($('rnB'),'✅ Salvo')};
-    $('arB').onclick=e=>sure(e.currentTarget,()=>put('players',{...S.raw.find(x=>x.id===p.id),hidden:!p.hidden}));
+    $('rnB').onclick=async()=>{const n=$('rn').value.trim(); if(!n)return; if(S.raw.some(x=>x.id!==p.id&&x.name.toLowerCase()===n.toLowerCase()))return flash($('rnB'),'Nome já existe'); const o=p.name; await put('players',{...S.raw.find(x=>x.id===p.id),name:n}); await logA(`Nome alterado: ${o} → ${n}`); flash($('rnB'),'✅ Salvo')};
+    $('pg').querySelectorAll('button').forEach(b=>b.onclick=()=>sure(b,async()=>{const g=b.dataset.g;if(g===p.group)return;const o=p.group;await put('players',{...S.raw.find(x=>x.id===p.id),group:g});await logA(`Ranking inicial de ${p.name}: ${o} → ${g}`)}));
+    $('mgB').onclick=e=>{const did=$('mgP').value; if(!did)return; sure(e.currentTarget,async()=>{const dp=S.raw.find(x=>x.id===did); if(!dp)return;
+      for(const m of S.matches.filter(m=>m.winner===did||m.loser===did)){const nm={...m}; if(nm.winner===did){nm.winner=p.id;nm.wn=p.name} if(nm.loser===did){nm.loser=p.id;nm.ln=p.name} if(nm.winner===nm.loser)await del('matches',m.id); else await put('matches',nm)}
+      await del('players',did); await logA(`Cadastro juntado: ${dp.name} → ${p.name}`)})};
+    $('arB').onclick=e=>sure(e.currentTarget,async()=>{await put('players',{...S.raw.find(x=>x.id===p.id),hidden:!p.hidden});await logA(`${p.hidden?'Reativado':'Arquivado'}: ${p.name}`)});
   }
 }
 
@@ -363,6 +410,7 @@ function renderAdm(){
   <div class="sub">Jogadores</div><button class="sec" id="adjB" style="margin:0 0 10px">✏️ Alterar pontuação de um jogador</button>
   <div class="sub">Temporada</div><div class="wrow" style="margin-bottom:10px"><input id="snI" maxlength="40" value="${esc(sN(curS()))}"><button class="sec" id="snB" style="margin:0">Salvar nome</button></div><button class="sec" id="ns" style="margin:0">🏁 Encerrar temporada (pontos continuam)</button>
   ${(st.seasons||[]).slice().reverse().map(s=>`<details style="margin-top:8px"><summary>${esc(sN(s.n))} · ${new Date(s.end).toLocaleDateString('pt-BR')}</summary><table>${s.rows.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r[0])}</td><td class="n">${r[1]}</td><td class="n">${r[2]}</td></tr>`).join('')}</table></details>`).join('')}
+  <div class="sub">📜 Registro de alterações</div>${(st.log||[]).length?`<details><summary>Ver últimas ${Math.min(50,st.log.length)} alterações</summary><table>${st.log.slice(0,50).map(x=>`<tr><td style="white-space:nowrap">${fmt(x.at)}</td><td>${esc(x.t)}</td></tr>`).join('')}</table></details>`:'<p class="legend">Nenhuma alteração registrada ainda.</p>'}
   <div class="sub">Backup</div>
   <button class="sec" id="bkE" ${dl?'':'hidden'} style="margin:0">⬇️ Baixar backup (JSON)</button>
   <input type="file" id="bkF" accept=".json,application/json" style="width:100%;margin-top:8px"><textarea id="bk" rows="3" placeholder="Cole aqui o conteúdo do backup..." style="width:100%;margin-top:8px"></textarea>
@@ -370,7 +418,7 @@ function renderAdm(){
   <button class="sec" id="out">Sair do modo administrador</button>`;
   $('mg').onchange=()=>put('settings',{...S.settings,margin:Math.max(0,+$('mg').value||0)});
   $('ia').onchange=()=>put('settings',{...S.settings,inactiveDays:Math.max(0,+$('ia').value||0)});
-  $('snB').onclick=async e=>{const v=$('snI').value.trim(),n=curS(),m={...(S.settings.sNames||{})};if(v)m[n]=v;else delete m[n];await put('settings',{...S.settings,sNames:m});flash(e.currentTarget,'✅ Salvo')};
+  $('snB').onclick=async e=>{const v=$('snI').value.trim(),n=curS(),m={...(S.settings.sNames||{})};if(v)m[n]=v;else delete m[n];await put('settings',{...S.settings,sNames:m});await logA('Nome da temporada: '+sN(n));flash(e.currentTarget,'✅ Salvo')};
   $('ns').onclick=()=>{sTab=0;renderSeason();open('seasM')};
   $('adjB').onclick=()=>{
     const l=[...P].sort((a,b)=>a.name.localeCompare(b.name));
@@ -384,7 +432,7 @@ function renderAdm(){
       if(!Number.isFinite(v)||v<0){$('adjErr').textContent='Digite uma pontuação válida.';return}
       const base=p.rating-(p.adj||0);
       await put('players',{...S.raw.find(x=>x.id===p.id),adj:v-base});
-      $('adjM').classList.remove('on'); msg(`✅ ${esc(p.name)} agora tem ${v} pontos.`); renderAdm();
+      await logA(`Pontuação de ${p.name}: ${p.rating} → ${v}`); $('adjM').classList.remove('on'); msg(`✅ ${esc(p.name)} agora tem ${v} pontos.`); renderAdm();
     };
     open('adjM');
   };
@@ -397,7 +445,7 @@ function renderAdm(){
     for(const x of S.matches.filter(x=>!d.matches.some(y=>y.id===x.id)))await del('matches',x.id);
     for(const x of d.players)await put('players',{id:x.id,name:x.name,group:x.group,...(x.hidden?{hidden:true}:{}),...(x.adj?{adj:x.adj}:{})});
     for(const x of d.matches)await put('matches',x);
-    if(d.settings)await put('settings',{...DEF,...d.settings,id:'main'}); flash($('bkR'),'✅ Backup restaurado')});
+    if(d.settings)await put('settings',{...DEF,...d.settings,id:'main'}); await logA('Backup restaurado'); flash($('bkR'),'✅ Backup restaurado')});
   $('out').onclick=()=>{admin=false;render();renderAdm()};
 }
 
@@ -415,7 +463,7 @@ function renderSeason(){
 $('seasOk').onclick=e=>sure(e.currentTarget,async()=>{
   const rows=ranked().map(p=>[p.name,p.rating,tier(p),p.wins,p.losses]), ss=S.settings.seasons||[];
   await put('settings',{...S.settings,seasonStart:Date.now(),seasons:[...ss,{n:ss.length+1,end:Date.now(),rows}]});
-  $('seasM').classList.remove('on');
+  await logA('Temporada encerrada: '+sN(ss.length+1)); $('seasM').classList.remove('on');
 });
 
 /* ---- exportar CSV ---- */
