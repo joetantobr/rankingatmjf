@@ -19,6 +19,7 @@ function Index() {
     <iframe
       src="/ranking.html"
       title="Ranking ATMJF"
+      allow="web-share; clipboard-write"
       className="fixed inset-0 h-full w-full border-0"
     />
   );
