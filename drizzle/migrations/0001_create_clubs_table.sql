@@ -1,0 +1,10 @@
+CREATE TABLE public.clubs (id TEXT PRIMARY KEY, data JSONB NOT NULL);
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.clubs TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.clubs TO authenticated;
+GRANT ALL ON public.clubs TO service_role;
+ALTER TABLE public.clubs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "public read clubs" ON public.clubs FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY "public write clubs" ON public.clubs FOR INSERT TO anon, authenticated WITH CHECK (true);
+CREATE POLICY "public update clubs" ON public.clubs FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "public delete clubs" ON public.clubs FOR DELETE TO anon, authenticated USING (true);
+ALTER PUBLICATION supabase_realtime ADD TABLE public.clubs;
