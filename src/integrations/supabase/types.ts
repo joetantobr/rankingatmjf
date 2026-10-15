@@ -14,6 +14,21 @@ export type Database = {
   }
   public: {
     Tables: {
+      clubs: {
+        Row: {
+          data: Json
+          id: string
+        }
+        Insert: {
+          data: Json
+          id: string
+        }
+        Update: {
+          data?: Json
+          id?: string
+        }
+        Relationships: []
+      }
       matches: {
         Row: {
           data: Json
