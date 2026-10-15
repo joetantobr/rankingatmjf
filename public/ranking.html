@@ -222,10 +222,11 @@ table.mx td,table.mx th{padding:5px 4px;font-size:13px}
 
 <div class="modal" id="seasM"><div class="sheet wide"><h3 id="seasT"></h3><div class="seg" id="seasTabs" style="grid-template-columns:1fr 1fr;margin-bottom:10px"></div><div id="seasB"></div><button class="pri" id="seasOk">🏁 Confirmar e encerrar temporada</button><button class="sec" data-close>Voltar</button></div></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const START={A:1800,B:1500,C:1200};
 const DEF={id:'main',maxScore:4,margin:50,inactiveDays:0,pin:'',seasonStart:0,seasons:[],bonusCfg:{CC:1.5,CB:1.5,CA:2,BC:1,BB:1,BA:1,AC:1,AB:1,AA:1},bonus:[],fire:[],fireF:1.5};
-const APP_URL='https://claude.ai/artifact/LxsmojLDdHGGd1MPaJBewD';
+const APP_URL='https://rankingatmjf.lovable.app';
 let G={raw:[],matches:[],sets:[],clubs:[]}, cur=(()=>{try{return localStorage.getItem('tm_club')||'main'}catch(e){return 'main'}})(), clubsInit=false, multi=new Set(), multiOpen=false, mFrom='', mUntil='', plkOpen=false, pendingJ=(()=>{try{const m=(location.hash+location.search).match(/[?#&]j=([A-Za-z0-9_-]+)/);return m?m[1]:''}catch(e){return ''}})(), S={raw:[],matches:[],settings:{...DEF}}, P=[], MV=[], D={}, sel=[null,null], sc=[null,null], pickIdx=0, histId=null, newGrp='C', db=null, dl=null, admin=false, pend=null, busy=false;
 const $=id=>document.getElementById(id), op=id=>$(id).classList.contains('on');
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -292,27 +293,35 @@ function refresh(){scope();compute();render(); if(pendingJ&&G.raw.some(x=>x.id==
 async function put(col,o,club){
   if(col==='players'||col==='matches')o={...o,club:club||cur};
   const a=G[GK[col]], i=a.findIndex(x=>x.id===o.id); i>=0?a[i]=o:a.push(o);
-  if(db){try{await db.collection(col).doc(o.id).set(o)}catch(e){msg('⚠️ Sem permissão para gravar.')}} else saveLocal();
+  if(db){try{await db.from(col).upsert({id:o.id,data:o})}catch(e){msg('⚠️ Sem permissão para gravar.')}} else saveLocal();
   refresh();
 }
 async function del(col,id){
   G[GK[col]]=G[GK[col]].filter(x=>x.id!==id);
-  if(db){try{await db.collection(col).doc(id).delete()}catch(e){msg('⚠️ Sem permissão para apagar.')}} else saveLocal();
+  if(db){try{await db.from(col).delete().eq('id',id)}catch(e){msg('⚠️ Sem permissão para apagar.')}} else saveLocal();
   refresh();
+}
+async function loadAll(){
+  try{
+    const [p,m,s,c]=await Promise.all([db.from('players').select('id,data'),db.from('matches').select('id,data'),db.from('settings').select('id,data'),db.from('clubs').select('id,data')]);
+    const map=r=>({...(r.data||{}),id:r.id});
+    G.raw=(p.data||[]).map(map); G.matches=(m.data||[]).map(map); G.sets=(s.data||[]).map(map); G.clubs=(c.data||[]).map(map);
+    if(!clubList().some(x=>x.id===cur)){cur=(clubList()[0]||{id:'main'}).id;try{localStorage.setItem('tm_club',cur)}catch(e){}}
+    saveLocal(); refresh();
+  }catch(e){}
 }
 (async()=>{
   try{const L=k=>JSON.parse(localStorage.getItem(k)||'null'); G.raw=L('tm_raw')||L('tm_players')||[]; G.matches=L('tm_matches')||[]; G.sets=L('tm_sets')||(L('tm_settings')?[{...L('tm_settings'),id:'main'}]:[]); G.clubs=L('tm_clubs')||[]}catch(e){}
   refresh();
-  try{db=await claude.use('db')}catch(e){db=null}
-  if(db){
-    G={raw:[],matches:[],sets:[],clubs:[]};
-    db.collection('players').onSnapshot(x=>{G.raw=x.docs.map(d=>d.data());refresh()},()=>{});
-    db.collection('matches').onSnapshot(x=>{G.matches=x.docs.map(d=>d.data());refresh()},()=>{});
-    db.collection('settings').onSnapshot(x=>{G.sets=x.docs.map(d=>({...d.data(),id:d.id}));refresh()},()=>{});
-    db.collection('clubs').onSnapshot(x=>{G.clubs=x.docs.map(d=>({...d.data(),id:d.id}));if(!clubList().some(c=>c.id===cur)){cur=(clubList()[0]||{id:'main'}).id;try{localStorage.setItem('tm_club',cur)}catch(e){}}refresh()},()=>{});
-  }
-  try{dl=await claude.use('downloads')}catch(e){dl=null}
-  try{userNS=await claude.use('user'); if(userNS){const m=await userNS.me(); myId=(m&&m.id)||''}}catch(e){userNS=null}
+  try{
+    db=window.supabase.createClient('https://sbphiljvejzghtmxphpi.supabase.co','sb_publishable_4PQSjPIVrDfTqngSppT5lw_oGe-CSlQ');
+    await loadAll();
+    const ch=db.channel('ranking');
+    ['players','matches','settings','clubs'].forEach(t=>ch.on('postgres_changes',{event:'*',schema:'public',table:t},()=>loadAll()));
+    ch.subscribe();
+  }catch(e){db=null}
+  dl={save:async({filename,data})=>{const blob=(data instanceof Blob)?data:new Blob([data],{type:/\.jpg$/.test(filename)?'image/jpeg':'text/plain;charset=utf-8'});const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),5000)}};
+  userNS=null; myId='';
   document.querySelectorAll('[data-exp]').forEach(b=>b.hidden=!dl);
   $('hint').textContent=db?'Dados compartilhados com quem abrir este link.':'Dados salvos apenas neste navegador.';
 })();
